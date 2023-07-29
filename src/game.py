@@ -1,5 +1,5 @@
 import random
-
+import math
 import comms
 from object_types import ObjectTypes
 import json
@@ -90,7 +90,6 @@ class Game:
         This is where you should write your bot code to process the data and respond to the game.
         """
         # Write your code here... For demonstration, this bot just shoots randomly every turn.
-        TO_SHOOT = True
         #check if we have actually moved
         my_pos = self.objects[self.tank_id]["position"]
         if my_pos == self.start_pos:
@@ -102,22 +101,35 @@ class Game:
                 )
             return
         self.start_pos = my_pos
+
+
+
+
         enemy_pos = self.objects[self.enemy_id]["position"]
         #use trig to determine angle to shoot at
-        import math
+  
         angle = math.degrees(math.atan2(enemy_pos[1] - my_pos[1], enemy_pos[0] - my_pos[0]))
-        bound_pos = self.objects["closing_boundary-1"]["position"]
+        
+
+        #calculate position of bullet to see if there is a reboundable wall too close
+        bullet_pos = [my_pos[0] + 50*math.cos(math.radians(angle)), my_pos[1] + 50*math.sin(math.radians(angle))]
+        for obj in self.objects.values():
+            if obj["type"] == 3:
+                pass
+                
+
 
         # check if any bullets are coming towards us
+        to_move = [(50,50), (50,-50), (-50,50), (-50,-50)]
         for obj in self.objects.values():
             if obj["type"] == 2:
                 #move away if any of the x-y values are within 40 units of our position
                 if abs(obj["position"][0] - my_pos[0]) < 40 or abs(obj["position"][1] - my_pos[1]) < 40:
                     #move away from the bullet 
-
+                    move = random.choice(to_move)
                     comms.post_message(
                         {
-                        "path": [my_pos[0] + 120, my_pos[1] + 110], "shoot": angle
+                        "path": [my_pos[0]+move[0],my_pos[1]+move[1]], "shoot": angle
                         }
                         )
         
@@ -127,3 +139,4 @@ class Game:
             }
             )
      #  {"closing_boundary-1":{"type":6,"position":[[2.5,997.5],[2.5,2.5],[1797.5,2.5],[1797.5,997.5]],"velocity":[[10.0,0.0],[0.0,10.0],[-10.0,0.0],[0.0,-10.0]]}}
+     # bound_pos = self.objects["closing_boundary-1"]["position"]
