@@ -2,8 +2,7 @@ import random
 
 import comms
 from object_types import ObjectTypes
-
-
+import json
 class Game:
     """
     Stores all information about the game and manages the communication cycle.
@@ -90,11 +89,10 @@ class Game:
         """
 
         # Write your code here... For demonstration, this bot just shoots randomly every turn.
-        '''
-        comms.post_message({
-            "shoot": random.uniform(0, random.randint(1, 360))
-        })
-        '''
+        comms.post_message(
+            {
+            "shoot": random.uniform(0, random.randint(1, 360)), "move": 45
+            }
+            )
+        
        
-
-
