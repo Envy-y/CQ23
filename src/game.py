@@ -3,6 +3,7 @@ import math
 import comms
 from object_types import ObjectTypes
 import json
+import heapq
 class Game:
     """
     Stores all information about the game and manages the communication cycle.
@@ -122,6 +123,7 @@ class Game:
         if total_threat_weight > 0:
             average_threat_direction = total_threat_direction / total_threat_weight
             dodge_direction = (average_threat_direction + 90) % 360
+            dodge_direction = random.choice([dodge_direction, dodge_direction + 90])
             return dodge_direction
         else:
             return None
@@ -131,60 +133,41 @@ class Game:
         """
         This is where you should write your bot code to process the data and respond to the game.
         """
-        # Write your code here... For demonstration, this bot just shoots randomly every turn.
-        #check if we have actually moved
-        TO_SHOOT = True
-        TO_MOVE = [self.width/2, self.height/2]
-        my_pos = self.objects[self.tank_id]["position"]
-        if my_pos == self.start_pos:
-            #move to the center
-           TO_MOVE = [self.width/2, self.height/2]
-        self.start_pos = my_pos
+        # TODO: 
+        # 1. BORDER CHECKING (THIS SHOULD HAVE THE HIGHEST PRIORITY)
+        # 2. UNSTUCKING (IF YOU ARE STUCK, YOU SHOULD GET UNSTUCKED)
+        # 3. POWERUP CHECKING (IF THERE IS A POWERUP IN YOUR RANGE, YOU SHOULD GO AND GET IT)
+        # 4. WALLS LOGIC (DO NOT SHOOT INTO A REBOUNDABLE WALL)
 
+        post_message_queue = []
+        my_pos = self.objects[self.tank_id]["position"]
         enemy_pos = self.objects[self.enemy_id]["position"]
+        #DEFAULT ACTION - MOVE TOWARDS CENTER
+        heapq.heappush(post_message_queue,(4,{"path":[self.width/2,self.height/2]}))
         
         #use trig to determine angle to shoot at
         angle = math.degrees(math.atan2(enemy_pos[1] - my_pos[1], enemy_pos[0] - my_pos[0]))
+    ##################################################################################################
+    # UNSTUCKING SECTION
+    ##################################################################################################
+        #if stuck, move to the center
+        if math.sqrt((my_pos[0] - self.start_pos[0])**2 + (my_pos[1] - self.start_pos[1])**2) < 10:
+            heapq.heappush(post_message_queue,(2,{"path":[self.width/2,self.height/2]}))
+        self.start_pos = my_pos
+            
         
-        #check if there is a wall in the way
-        #first, construct y=mx+b equation for our position and the path the bullet will take
-   
-        m = (enemy_pos[1] - my_pos[1])/(enemy_pos[0] - my_pos[0])
-        b = my_pos[1] - m*my_pos[0]
-        # the maximum value for x is enemy_pos[0] and the minimum is my_pos[0]
-        # now check if any of the walls are in the way
-        for obj in self.objects.values():
-            if obj["type"] == 3:
-                #check if its within our domain
-                if abs(obj["position"][0]) < abs(enemy_pos[0]) and abs(obj["position"][0]) > abs(my_pos[0]):
-                    #use equation to see if it is in the way
-                    y_pos = m*obj["position"][0] + b
-                    if abs(y_pos - obj["position"][1]) < 20:
-                        #TO_SHOOT = False
-                        pass
- 
-               
-                        
-        '''  
-        # check if any bullets are coming towards us
-        to_move = [(50,50), (50,-50), (-50,50), (-50,-50)]
-        for obj in self.objects.values():
-            if obj["type"] == 2:
-                #move away if any of the x-y values are within 40 units of our position
-                if abs(obj["position"][0] - my_pos[0]) < 40 or abs(obj["position"][1] - my_pos[1]) < 40:
-                    #move away from the bullet 
-                    move = random.choice(to_move)     
-                    TO_MOVE = [self.width/2 + move[0], self.height/2 + move[1]]
-
-        '''   
+    ##################################################################################################   
+    # DODGE BULLET SECTION     
+    ##################################################################################################
+        pos = None
+        temp = 5000
         projectiles = []
         # check if any bullets are coming towards us
         for obj in self.objects.values():
             if obj["type"] == 2:
-                #move away if any of the x-y values are within 450 units of our position
-                if abs(obj["position"][0] - my_pos[0]) < 500 or abs(obj["position"][1] - my_pos[1]) < 500:
+                #move away if any of the x-y values are within 150 units of our position
+                if abs(obj["position"][0] - my_pos[0]) < 150 and abs(obj["position"][1] - my_pos[1]) < 150:
                     # calculate if the bullet will hit me, and add to queue
-               
                     if self.check_bullet(my_pos[0],
                                         my_pos[1],
                                         obj["position"][0],
@@ -194,38 +177,51 @@ class Game:
                                         ):
                             
                         projectiles.append(obj)
+            if obj["type"] == 7:
+                powerup_pos = obj["position"]
+                distance = self.get_distance(my_pos, powerup_pos)
+                if distance < temp:
+                    temp = distance
+                    pos = powerup_pos
+            if obj["type"] == 6:
+                border_pos = obj["position"]
+                if abs(my_pos[0] - obj["position"][0][0]) < 80 or abs(my_pos[1] - obj["position"][0][1]) < 80 \
+                or abs(my_pos[0] - obj["position"][2][0]) < 80 or abs(my_pos[1] - obj["position"][2][1]) < 80:
+                   heapq.heappush(post_message_queue,(0,{"path":[self.width/2,self.height/2]}))
+                   break
+
+
+
+
+
+
         dodge_direction = self.get_dodge_direction(projectiles,my_pos)
 
-        if dodge_direction is not None:
-
-            #new_position_x = my_pos[0] + 120 * math.cos(math.radians(dodge_direction))
-            #new_position_y = my_pos[1] + 120 * math.sin(math.radians(dodge_direction))
-            comms.post_message(
-                {
-                "move": dodge_direction + random.randint(45,90), "shoot": angle
-                }
-            )
-            return
+        if pos:
+            #compute if this position is outside border_pos
+            # border_pos = [TOP LEFT,BOTTOM LEFT,BOTTOM RIGHT,TOP RIGHT]
+            if pos[0] < border_pos[0][0] or pos[0] > border_pos[3][0] or pos[1] < border_pos[1][1] or pos[1] > border_pos[3][1]:
+                pass
+            else:
+                heapq.heappush(post_message_queue,(2,{"path":[pos[0],pos[1]]}))
+        if dodge_direction:      
+            heapq.heappush(post_message_queue,(1,{"move": dodge_direction + random.randint(-45,45)}))
         else:
-            comms.post_message(
-                {
-                "path": TO_MOVE
-                }
-            )
+            pass
+        
+    ##################################################################################################
+    # NO HOMO SECTION
+    ##################################################################################################
+        dist = self.get_distance(my_pos,enemy_pos)
+        if dist < 200:
+            heapq.heappush(post_message_queue,(3,{"move": angle + 180}))
 
-                        
-                        
-        if TO_SHOOT:
-            comms.post_message(
-            {
-            "shoot": angle, "path": TO_MOVE
-            }
-            )
-        else:
-            comms.post_message(
-            {
-            "path": TO_MOVE
-            }
-            )
-     #  {"closing_boundary-1":{"type":6,"position":[[2.5,997.5],[2.5,2.5],[1797.5,2.5],[1797.5,997.5]],"velocity":[[10.0,0.0],[0.0,10.0],[-10.0,0.0],[0.0,-10.0]]}}
-     # bound_pos = self.objects["closing_boundary-1"]["position"]
+        
+        priority, action = heapq.heappop(post_message_queue)
+        action.update({"shoot": angle})
+        try:       
+            comms.post_message(action)
+        except Exception as e:
+            pass
+    
+    
