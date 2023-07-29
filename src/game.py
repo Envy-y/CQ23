@@ -131,29 +131,16 @@ class Game:
                 if abs(obj["position"][0] - my_pos[0]) < 40 or abs(obj["position"][1] - my_pos[1]) < 40:
                     #move away from the bullet 
                     move = random.choice(to_move)
-                    TO_MOVE = [my_pos[0]+move[0],my_pos[1]+move[1]]
+                    comms.post_message(
+                        {
+                        "path": [my_pos[0]+move[0],my_pos[1]+move[1]], "shoot": angle
+                        }
+                        )
         
-        # CHECK FOR boundaries
-        for obj in self.objects.values():
-            if obj["type"] == 6:
-                # check x coord
-                if abs(obj["position"][0][0] - my_pos[0]) < 40 or abs(obj["position"][0][1] - my_pos[1]) < 40 \
-                    or abs(obj["position"][2][0] - my_pos[0]) < 40 or abs(obj["position"][2][1] - my_pos[1]) < 40:
-                    #move to the center
-                     TO_MOVE = [self.width/2, self.height/2]
-                     
-
-        if TO_SHOOT:
-            comms.post_message(
-                {
-                "shoot": angle, "path": TO_MOVE
-                }
-                )
-        else:
-            comms.post_message(
-                {
-                "path": TO_MOVE
-                }
-                )
+        comms.post_message(
+            {
+            "shoot": angle, "path": enemy_pos
+            }
+            )
      #  {"closing_boundary-1":{"type":6,"position":[[2.5,997.5],[2.5,2.5],[1797.5,2.5],[1797.5,997.5]],"velocity":[[10.0,0.0],[0.0,10.0],[-10.0,0.0],[0.0,-10.0]]}}
      # bound_pos = self.objects["closing_boundary-1"]["position"]
