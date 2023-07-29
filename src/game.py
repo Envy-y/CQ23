@@ -87,12 +87,23 @@ class Game:
         """
         This is where you should write your bot code to process the data and respond to the game.
         """
-
         # Write your code here... For demonstration, this bot just shoots randomly every turn.
+
+    
+        my_pos = self.objects["tank-1"]["position"]
+        bound_pos = self.objects["closing_boundary-1"]["position"]
+        '''
+        for i in range(len(bound_pos)):
+            #check if my pos is too close to the boundary, if so, turn around
+            if abs(my_pos[0] - bound_pos[i][0]) < 20 and abs(my_pos[1] - bound_pos[i][1]) < 20:
+                pos = [bound_pos[i][0] + 100, bound_pos[i][1] + 100]
+        '''
+                
+                
         comms.post_message(
             {
-            "shoot": random.uniform(0, random.randint(1, 360)), "move": 45
+            "shoot": random.uniform(0, random.randint(1, 360)), "path": my_pos
             }
             )
         
-       
+     #  {"closing_boundary-1":{"type":6,"position":[[2.5,997.5],[2.5,2.5],[1797.5,2.5],[1797.5,997.5]],"velocity":[[10.0,0.0],[0.0,10.0],[-10.0,0.0],[0.0,-10.0]]}}
