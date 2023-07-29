@@ -84,6 +84,48 @@ class Game:
         self.objects.update(self.current_turn_message["message"]["updated_objects"])
 
         return True
+    
+    def check_bullet(self,player_x, player_y, bullet_x, bullet_y, bullet_velocity_x, bullet_velocity_y):        
+        #distance formula to get distance between player and bullet
+        distance = math.sqrt((player_x - bullet_x)**2 + (player_y - bullet_y)**2)
+        #get new distance with orig bullet + orig velocity
+        new_distance = math.sqrt((player_x - (bullet_x + bullet_velocity_x))**2 + (player_y - (bullet_y + bullet_velocity_y))**2)
+        #if the new distance is greater than the old distance, the bullet is moving away from us
+        if new_distance > distance:
+            return False
+        else:
+            return True
+
+        
+
+    def get_distance(self, position1, position2):
+        x1, y1 = position1
+        x2, y2 = position2
+        return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+    def get_dodge_direction(self, bullets,my_pos):
+        total_threat_direction = 0
+        total_threat_weight = 0
+
+        for bullet in bullets:
+            bullet_position = bullet['position']
+            bullet_velocity_x, bullet_velocity_y = bullet['velocity']
+
+            distance = self.get_distance(my_pos, bullet_position)
+            threat_weight = 1 / distance
+
+            bullet_direction = math.degrees(math.atan2(bullet_velocity_y, bullet_velocity_x)) % 360
+
+            total_threat_direction += bullet_direction * threat_weight
+            total_threat_weight += threat_weight
+
+        if total_threat_weight > 0:
+            average_threat_direction = total_threat_direction / total_threat_weight
+            dodge_direction = (average_threat_direction + 90) % 360
+            return dodge_direction
+        else:
+            return None
+
 
     def respond_to_turn(self):
         """
@@ -99,9 +141,6 @@ class Game:
            TO_MOVE = [self.width/2, self.height/2]
         self.start_pos = my_pos
 
-
-
-
         enemy_pos = self.objects[self.enemy_id]["position"]
         
         #use trig to determine angle to shoot at
@@ -109,6 +148,7 @@ class Game:
         
         #check if there is a wall in the way
         #first, construct y=mx+b equation for our position and the path the bullet will take
+   
         m = (enemy_pos[1] - my_pos[1])/(enemy_pos[0] - my_pos[0])
         b = my_pos[1] - m*my_pos[0]
         # the maximum value for x is enemy_pos[0] and the minimum is my_pos[0]
@@ -116,15 +156,16 @@ class Game:
         for obj in self.objects.values():
             if obj["type"] == 3:
                 #check if its within our domain
-                if obj["position"][0] < enemy_pos[0] and obj["position"][0] > my_pos[0]:
+                if abs(obj["position"][0]) < abs(enemy_pos[0]) and abs(obj["position"][0]) > abs(my_pos[0]):
                     #use equation to see if it is in the way
                     y_pos = m*obj["position"][0] + b
-                    if abs(y_pos - obj["position"][1]) < 5:
-                        TO_SHOOT = False
-                        break
+                    if abs(y_pos - obj["position"][1]) < 20:
+                        #TO_SHOOT = False
+                        pass
+ 
                
                         
-                
+        '''  
         # check if any bullets are coming towards us
         to_move = [(50,50), (50,-50), (-50,50), (-50,-50)]
         for obj in self.objects.values():
@@ -134,6 +175,44 @@ class Game:
                     #move away from the bullet 
                     move = random.choice(to_move)     
                     TO_MOVE = [self.width/2 + move[0], self.height/2 + move[1]]
+
+        '''   
+        projectiles = []
+        # check if any bullets are coming towards us
+        for obj in self.objects.values():
+            if obj["type"] == 2:
+                #move away if any of the x-y values are within 450 units of our position
+                if abs(obj["position"][0] - my_pos[0]) < 500 or abs(obj["position"][1] - my_pos[1]) < 500:
+                    # calculate if the bullet will hit me, and add to queue
+               
+                    if self.check_bullet(my_pos[0],
+                                        my_pos[1],
+                                        obj["position"][0],
+                                        obj["position"][1], 
+                                        obj["velocity"][0],
+                                        obj["velocity"][1]
+                                        ):
+                            
+                        projectiles.append(obj)
+        dodge_direction = self.get_dodge_direction(projectiles,my_pos)
+
+        if dodge_direction is not None:
+
+            #new_position_x = my_pos[0] + 120 * math.cos(math.radians(dodge_direction))
+            #new_position_y = my_pos[1] + 120 * math.sin(math.radians(dodge_direction))
+            comms.post_message(
+                {
+                "move": dodge_direction + random.randint(45,90), "shoot": angle
+                }
+            )
+            return
+        else:
+            comms.post_message(
+                {
+                "path": TO_MOVE
+                }
+            )
+
                         
                         
         if TO_SHOOT:
