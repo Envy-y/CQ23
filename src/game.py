@@ -17,6 +17,8 @@ class Game:
     def __init__(self):
         tank_id_message: dict = comms.read_message()
         self.tank_id = tank_id_message["message"]["your-tank-id"]
+        self.enemy_id = tank_id_message["message"]["enemy-tank-id"]
+        self.start_pos = [0,0]
 
         self.current_turn_message = None
 
@@ -89,20 +91,40 @@ class Game:
         """
         # Write your code here... For demonstration, this bot just shoots randomly every turn.
 
-    
-        my_pos = self.objects["tank-1"]["position"]
+        #check if we have actually moved
+        my_pos = self.objects[self.tank_id]["position"]
+        if my_pos == self.start_pos:
+            #move to the center
+            comms.post_message(
+                {
+                "path": [self.width/2, self.height/2]
+                }
+                )
+            return
+        self.start_pos = my_pos
+        enemy_pos = self.objects[self.enemy_id]["position"]
+        #use trig to determine angle to shoot at
+        import math
+        angle = math.degrees(math.atan2(enemy_pos[1] - my_pos[1], enemy_pos[0] - my_pos[0]))
         bound_pos = self.objects["closing_boundary-1"]["position"]
-        '''
-        for i in range(len(bound_pos)):
-            #check if my pos is too close to the boundary, if so, turn around
-            if abs(my_pos[0] - bound_pos[i][0]) < 20 and abs(my_pos[1] - bound_pos[i][1]) < 20:
-                pos = [bound_pos[i][0] + 100, bound_pos[i][1] + 100]
-        '''
+        
+        # check if any bullets are coming towards us
+        for obj in self.objects.values():
+            if obj["type"] == 2:
+                #move away if any of the x-y values are within 20 units of our position
+                if abs(obj["position"][0] - my_pos[0]) < 40 or abs(obj["position"][1] - my_pos[1]) < 40:
+                    #move away from the bullet
+                    comms.post_message(
+                        {
+                        "path": [my_pos[0] + 100, my_pos[1] + 100], "shoot" : angle
+                        }
+                        )
+                    return
                 
                 
         comms.post_message(
             {
-            "shoot": random.uniform(0, random.randint(1, 360)), "path": my_pos
+            "shoot": angle, "path": enemy_pos, "path" : enemy_pos
             }
             )
         
