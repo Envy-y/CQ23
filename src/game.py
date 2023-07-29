@@ -138,5 +138,24 @@ class Game:
             "shoot": angle, "path": enemy_pos
             }
             )
+        
+
+        # move away from closing boundary
+        for obj in self.objects.values():
+            if obj["type"] == 6:
+                # check x coord
+                if abs(obj["position"][0][0] - my_pos[0]) < 40 or abs(obj["position"][0][1] - my_pos[1]) < 40 \
+                    or abs(obj["position"][2][0] - my_pos[0]) < 40 or abs(obj["position"][2][1] - my_pos[1]) < 40:
+                    #move to the center
+                     comms.post_message(
+                         {
+                             "path": [self.width/2, self.height/2]
+                         }
+                     )
+
+        
+        # for obj in self.objects.values():
+        #     if obj["type"] == 7:
+
      #  {"closing_boundary-1":{"type":6,"position":[[2.5,997.5],[2.5,2.5],[1797.5,2.5],[1797.5,997.5]],"velocity":[[10.0,0.0],[0.0,10.0],[-10.0,0.0],[0.0,-10.0]]}}
      # bound_pos = self.objects["closing_boundary-1"]["position"]
