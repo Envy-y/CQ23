@@ -91,15 +91,12 @@ class Game:
         """
         # Write your code here... For demonstration, this bot just shoots randomly every turn.
         #check if we have actually moved
+        TO_SHOOT = False
+        TO_MOVE = [self.width/2, self.height/2]
         my_pos = self.objects[self.tank_id]["position"]
         if my_pos == self.start_pos:
             #move to the center
-            comms.post_message(
-                {
-                "path": [self.width/2, self.height/2]
-                }
-                )
-            return
+           TO_MOVE = [self.width/2, self.height/2]
         self.start_pos = my_pos
 
 
@@ -114,11 +111,18 @@ class Game:
         #calculate position of bullet to see if there is a reboundable wall too close
         bullet_pos = [my_pos[0] + 50*math.cos(math.radians(angle)), my_pos[1] + 50*math.sin(math.radians(angle))]
         for obj in self.objects.values():
+            #however if their tank is closer to ours than the wall, shoot
+            if abs(my_pos[0] - enemy_pos[0]) < 50 or abs(my_pos[1] - enemy_pos[1])< 50:
+                TO_SHOOT = True
+                break
             if obj["type"] == 3:
-                pass
+                if abs(obj["position"][0] - bullet_pos[0]) < abs(my_pos[0] - bullet_pos[0]) or \
+                    abs(obj["position"][1] - bullet_pos[1]) < abs(my_pos[1] - bullet_pos[1]):
+                    #look for powerups
+                    TO_SHOOT = False
+                    break
+                        
                 
-
-
         # check if any bullets are coming towards us
         to_move = [(50,50), (50,-50), (-50,50), (-50,-50)]
         for obj in self.objects.values():
@@ -127,16 +131,29 @@ class Game:
                 if abs(obj["position"][0] - my_pos[0]) < 40 or abs(obj["position"][1] - my_pos[1]) < 40:
                     #move away from the bullet 
                     move = random.choice(to_move)
-                    comms.post_message(
-                        {
-                        "path": [my_pos[0]+move[0],my_pos[1]+move[1]], "shoot": angle
-                        }
-                        )
+                    TO_MOVE = [my_pos[0]+move[0],my_pos[1]+move[1]]
         
-        comms.post_message(
-            {
-            "shoot": angle, "path": enemy_pos
-            }
-            )
+        # CHECK FOR boundaries
+        for obj in self.objects.values():
+            if obj["type"] == 6:
+                # check x coord
+                if abs(obj["position"][0][0] - my_pos[0]) < 40 or abs(obj["position"][0][1] - my_pos[1]) < 40 \
+                    or abs(obj["position"][2][0] - my_pos[0]) < 40 or abs(obj["position"][2][1] - my_pos[1]) < 40:
+                    #move to the center
+                     TO_MOVE = [self.width/2, self.height/2]
+                     
+
+        if TO_SHOOT:
+            comms.post_message(
+                {
+                "shoot": angle, "path": TO_MOVE
+                }
+                )
+        else:
+            comms.post_message(
+                {
+                "path": TO_MOVE
+                }
+                )
      #  {"closing_boundary-1":{"type":6,"position":[[2.5,997.5],[2.5,2.5],[1797.5,2.5],[1797.5,997.5]],"velocity":[[10.0,0.0],[0.0,10.0],[-10.0,0.0],[0.0,-10.0]]}}
      # bound_pos = self.objects["closing_boundary-1"]["position"]
