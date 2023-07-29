@@ -91,7 +91,7 @@ class Game:
         """
         # Write your code here... For demonstration, this bot just shoots randomly every turn.
         #check if we have actually moved
-        TO_SHOOT = False
+        TO_SHOOT = True
         TO_MOVE = [self.width/2, self.height/2]
         my_pos = self.objects[self.tank_id]["position"]
         if my_pos == self.start_pos:
@@ -103,24 +103,26 @@ class Game:
 
 
         enemy_pos = self.objects[self.enemy_id]["position"]
+        
         #use trig to determine angle to shoot at
-  
         angle = math.degrees(math.atan2(enemy_pos[1] - my_pos[1], enemy_pos[0] - my_pos[0]))
         
-
-        #calculate position of bullet to see if there is a reboundable wall too close
-        bullet_pos = [my_pos[0] + 50*math.cos(math.radians(angle)), my_pos[1] + 50*math.sin(math.radians(angle))]
+        #check if there is a wall in the way
+        #first, construct y=mx+b equation for our position and the path the bullet will take
+        m = (enemy_pos[1] - my_pos[1])/(enemy_pos[0] - my_pos[0])
+        b = my_pos[1] - m*my_pos[0]
+        # the maximum value for x is enemy_pos[0] and the minimum is my_pos[0]
+        # now check if any of the walls are in the way
         for obj in self.objects.values():
-            #however if their tank is closer to ours than the wall, shoot
-            if abs(my_pos[0] - enemy_pos[0]) < 50 or abs(my_pos[1] - enemy_pos[1])< 50:
-                TO_SHOOT = True
-                break
             if obj["type"] == 3:
-                if abs(obj["position"][0] - bullet_pos[0]) < abs(my_pos[0] - bullet_pos[0]) or \
-                    abs(obj["position"][1] - bullet_pos[1]) < abs(my_pos[1] - bullet_pos[1]):
-                    #look for powerups
-                    TO_SHOOT = False
-                    break
+                #check if its within our domain
+                if obj["position"][0] < enemy_pos[0] and obj["position"][0] > my_pos[0]:
+                    #use equation to see if it is in the way
+                    y_pos = m*obj["position"][0] + b
+                    if abs(y_pos - obj["position"][1]) < 5:
+                        TO_SHOOT = False
+                        break
+               
                         
                 
         # check if any bullets are coming towards us
@@ -130,16 +132,20 @@ class Game:
                 #move away if any of the x-y values are within 40 units of our position
                 if abs(obj["position"][0] - my_pos[0]) < 40 or abs(obj["position"][1] - my_pos[1]) < 40:
                     #move away from the bullet 
-                    move = random.choice(to_move)
-                    comms.post_message(
-                        {
-                        "path": [my_pos[0]+move[0],my_pos[1]+move[1]], "shoot": angle
-                        }
-                        )
-        
-        comms.post_message(
+                    move = random.choice(to_move)     
+                    TO_MOVE = [self.width/2 + move[0], self.height/2 + move[1]]
+                        
+                        
+        if TO_SHOOT:
+            comms.post_message(
             {
-            "shoot": angle, "path": enemy_pos
+            "shoot": angle, "path": TO_MOVE
+            }
+            )
+        else:
+            comms.post_message(
+            {
+            "path": TO_MOVE
             }
             )
      #  {"closing_boundary-1":{"type":6,"position":[[2.5,997.5],[2.5,2.5],[1797.5,2.5],[1797.5,997.5]],"velocity":[[10.0,0.0],[0.0,10.0],[-10.0,0.0],[0.0,-10.0]]}}
